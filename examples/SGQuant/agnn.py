@@ -9,6 +9,7 @@ import ssl
 import time
 import random
 import os.path as osp
+import struct
 
 from quant import *
 
@@ -58,10 +59,12 @@ for i in range(int(len(data.y) * val_prec), int(len(data.y) * 1.0)):
 #     random.shuffle(val_mask)
 #     random.shuffle(test_mask)
 
-train_mask = torch.BoolTensor(train_mask).cuda()
-val_mask = torch.BoolTensor(val_mask).cuda()
-test_mask = torch.BoolTensor(test_mask).cuda()
-
+#train_mask = torch.BoolTensor(train_mask).cuda()
+#val_mask = torch.BoolTensor(val_mask).cuda()
+#test_mask = torch.BoolTensor(test_mask).cuda()
+train_mask = torch.BoolTensor(train_mask).cpu()
+val_mask = torch.BoolTensor(val_mask).cpu()
+test_mask = torch.BoolTensor(test_mask).cpu()
 # train_mask = torch.BoolTensor(data.train_mask).cuda()
 # val_mask = torch.BoolTensor(data.val_mask).cuda()
 # test_mask = torch.BoolTensor(data.test_mask).cuda()
@@ -82,21 +85,25 @@ class Net(torch.nn.Module):
         x, edge_index = data.x, data.edge_index
 
         if quant:
-            x = quantize(x, num_bits=bit_list[0], dequantize=True)
+#            x = quantize(x, num_bits=bit_list[0], dequantize=True)
+            x = quant_bf16(x)
         x = F.dropout(x, training=self.training)
         x = F.relu(self.lin1(x))
 
         if quant:
-            x = quantize(x, num_bits=bit_list[1], dequantize=True)
+#            x = quantize(x, num_bits=bit_list[1], dequantize=True)
+            x = quant_bf16(x)
         x = self.prop1(x, edge_index)
 
         if quant:
-            x = quantize(x, num_bits=bit_list[2], dequantize=True)
+#            x = quantize(x, num_bits=bit_list[2], dequantize=True)
+            x = quant_bf16(x)
         x = self.prop2(x, edge_index)
 
         x = F.dropout(x, training=self.training)
         if quant:
-            x = quantize(x, num_bits=bit_list[3], dequantize=True)        
+#            x = quantize(x, num_bits=bit_list[3], dequantize=True)  
+            x = quant_bf16(x)
         x = self.lin2(x)
 
         return F.log_softmax(x, dim=1)

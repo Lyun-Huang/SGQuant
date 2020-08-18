@@ -9,12 +9,13 @@ from collections import defaultdict
 import pickle
 import os
 import sys
+import struct
 # import numpy as np
 # import pandas as pd
 # import seaborn as sns
 # import matplotlib.pyplot as plt
 # from scipy import stats
-import math
+#import math
 import bisect
 
 # sns.set(color_codes=True)
@@ -24,7 +25,7 @@ QParams = namedtuple('QParams', ['range', 'zero_point', 'num_bits'])
 _DEFAULT_FLATTEN = (1, -1)
 _DEFAULT_FLATTEN_GRAD = (0, -1)
 
-
+#将x的维度变成和x_full相同
 def _deflatten_as(x, x_full):
     shape = list(x.shape) + [1] * (x_full.dim() - x.dim())
     return x.view(*shape)
@@ -109,7 +110,69 @@ def quantize(x, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN, redu
     return UniformQuantize().apply(
         x, num_bits, qparams, flatten_dims, reduce_dim, dequantize, signed, stochastic, inplace)
 
+def float_to_bin(num):
+    return format(struct.unpack('!I', struct.pack('!f', num))[0], '032b')
+
+def bin_to_float(binary):
+    return struct.unpack('!f',struct.pack('!I', int(binary, 2)))[0]
+
+#def float2tf32(f, num_e_bits=8, num_m_bits=23, bias=127., dtype=torch.float32):
+#    if torch.is_tensor(f) is not True:
+#        f=torch.tensor([f])
+#    else:
+#        f=f.item()
+#        f=torch.tensor([f])
+#    binary=float2bit(f, num_e_bits=num_e_bits, num_m_bits=num_m_bits, bias=bias)
+##    print(binary)
+#    for _ in range(19,32):
+#        binary[0, _]=0
+##    print(binary)
+#    back=bit2float(binary).item()
+#    return back
+
+def float2tf32(f):
+    binary=float_to_bin(f)
+#    print(binary)
+    binary=list(binary)
+    for i in range(19,32):
+        binary[i]='0'
+    binary=''.join(binary)
+#    print(binary)
+    return bin_to_float(binary)
+
+def quant_tf32(x):
+    q=torch.randn_like(x)
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            if x[i,j].item() == 0:
+                q[i,j]=torch.tensor(0.)
+            else:
+                q[i,j]=torch.tensor(float2tf32(x[i,j].item()))
+    return q
+
+def float2bf16(f):
+    binary=float_to_bin(f)
+#    print(binary)
+    binary=list(binary)
+    for i in range(16,32):
+        binary[i]='0'
+    binary=''.join(binary)
+#    print(binary)
+    return bin_to_float(binary)
+
+def quant_bf16(x):
+    q=torch.randn_like(x)
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            if x[i,j].item() == 0:
+                q[i,j]=torch.tensor(0.)
+            else:
+                q[i,j]=torch.tensor(float2bf16(x[i,j].item()))
+    return q
+
 def main():
+    x=3.224153
+    print(float2tf32(x))
     pass
     # torch.manual_seed(4)
     # x = torch.randn((8, 8), requires_grad=True)
